@@ -4,7 +4,10 @@
 # eg: nft-blacklist.sh /etc/nft-blacklist/nft-blacklist.conf
 #
 
+CIDR_MERGER="cidr-merger" # can be "./cidr-merger-linux-amd64" or similar if you just donwloaded the binary
+NFT="nft"  # can be "sudo /sbin/nft" or whatever to apply the ruleset
 SET_NAME_PREFIX=blacklist
+HOOK="input" # use "prerouting" if you need to drop packets before other prerouting rule chains
 SET_NAME_V4="${SET_NAME_PREFIX}_v4"
 SET_NAME_V6="${SET_NAME_PREFIX}_v6"
 IPV4_REGEX="(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?:/[0-9]{1,2})?"
@@ -46,7 +49,7 @@ fi
 
 # download cidr-merger from https://github.com/zhanhb/cidr-merger/releases
 DO_OPTIMIZE_CIDR=no
-if exists cidr-merger ; then
+if exists $CIDR_MERGER ; then
   DO_OPTIMIZE_CIDR=yes
 else
   echo >&2 "Warning: cidr-marger is not available, please download it from https://github.com/zhanhb/cidr-merger/releases to avoid issues with nft"
@@ -83,7 +86,7 @@ sed -r -e '/^(0\.0\.0\.0|10\.|127\.|172\.1[6-9]\.|172\.2[0-9]\.|172\.3[0-1]\.|19
 sed -r -e '/^([0:]+\/0|fe80:)/Id' "$IP6_BLACKLIST_TMP_FILE" | sort -d | sort -mu >| "$IP6_BLACKLIST_FILE"
 if [[ ${DO_OPTIMIZE_CIDR} == yes ]]; then
   [[ ${VERBOSE:-no} == yes ]] && echo -e "Optimizing entries...\\nFound: $(count_entries "$IP_BLACKLIST_FILE") IPv4, $(count_entries "$IP6_BLACKLIST_FILE") IPv6"
-  cidr-merger -o "$IP_BLACKLIST_TMP_FILE" -o "$IP6_BLACKLIST_TMP_FILE" "$IP_BLACKLIST_FILE" "$IP6_BLACKLIST_FILE"
+  $CIDR_MERGER -o "$IP_BLACKLIST_TMP_FILE" -o "$IP6_BLACKLIST_TMP_FILE" "$IP_BLACKLIST_FILE" "$IP6_BLACKLIST_FILE"
   [[ ${VERBOSE:-no} == yes ]] && echo -e "Saved: $(count_entries "$IP_BLACKLIST_TMP_FILE") IPv4, $(count_entries "$IP6_BLACKLIST_TMP_FILE") IPv6\\n"
   cp "$IP_BLACKLIST_TMP_FILE" "$IP_BLACKLIST_FILE"
   cp "$IP6_BLACKLIST_TMP_FILE" "$IP6_BLACKLIST_FILE"
@@ -106,7 +109,7 @@ add set inet $TABLE $SET_NAME_V4 { type ipv4_addr; flags interval; }
 flush set inet $TABLE $SET_NAME_V4
 add set inet $TABLE $SET_NAME_V6 { type ipv6_addr; flags interval; }
 flush set inet $TABLE $SET_NAME_V6
-add chain inet $TABLE input { type filter hook input priority filter - 1; policy accept; }
+add chain inet $TABLE input { type filter hook $HOOK priority filter - 1; policy accept; }
 flush chain inet $TABLE input
 add rule inet $TABLE input iif "lo" accept
 add rule inet $TABLE input meta pkttype { broadcast, multicast } accept\
@@ -134,7 +137,7 @@ fi
 
 if [[ ${APPLY_RULESET:-yes} == yes ]]; then
   [[ ${VERBOSE:-no} == yes ]] && echo "Applying ruleset..."
-  nft -f "$RULESET_FILE" || exit 1
+  $NFT -f "$RULESET_FILE" || exit 1
 fi
 
 [[ ${VERBOSE:-no} == yes ]] && echo "Done!"

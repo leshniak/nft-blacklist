@@ -4,6 +4,7 @@ A Bash shell script which uses nftables sets to ban a large number of IP address
 
 ## What's new
 
+- 12/31/2023: Add more customization options using shell variables {[@henrythasler](https://github.com/henrythasler)}
 - 08/26/2022: Added experimental IPv6 support and whitelists [@leshniak](https://github.com/leshniak)
 - 08/24/2022: Created this fork and nftables-based version [@leshniak](https://github.com/leshniak)
 - 10/17/2018: Added support for CIDR aggregation if iprange command is available
